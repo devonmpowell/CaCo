@@ -53,6 +53,7 @@ void expected_value(real bet, Hand hand, Hand dealer, Shoe shoe, int* allowed, i
 		return;
 	} 
 
+#if 0
 	// if we have just dealt the hand, check for dealer/player blackjack
 	if(!depth) {
 	
@@ -76,11 +77,8 @@ void expected_value(real bet, Hand hand, Hand dealer, Shoe shoe, int* allowed, i
 		else {
 			// probability of losing to dealer BJ, or push
 		}
-	
-	
-	
-	
 	}
+#endif
 
 	// simulate the expected value of standing
 	// should always be allowed 
