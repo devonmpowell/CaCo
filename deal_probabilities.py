@@ -40,7 +40,7 @@ for d0 in caco.allCards:
 # time it
 tstop = time.time()
 print "elapsed time = %f" % (tstop-tstart)
-print 'Total error in deal prob = %.5e' % np.abs(1.0-np.sum(dealprob))
+#print 'Total error in deal prob = %.5e' % np.abs(1.0-np.sum(dealprob))
 fig, ax = caco.plotChart(dealprob, title='Deal probability, infinite shoe', textarr=dealprob,
         textfmt=(lambda x, a: '%.1e'%x), cmap=plt.cm.RdBu_r)
 fig.savefig('img/deal_probabilities.png', bbox_inches = 'tight', pad_inches = 0)
@@ -53,7 +53,17 @@ fig, ax = caco.plotChart(weightedexp,
         title='Expected win/loss weighted by deal prob. (total = %+.1e), infinite shoe' %
         np.sum(weightedexp), 
         textarr=weightedexp, textfmt=(lambda x, a: '%.1e'%x), cmap=plt.cm.RdYlGn, vrange=vrange)
+fig.savefig('img/deal_weighted_hand_expectations.png', bbox_inches = 'tight', pad_inches = 0)
+
+# also save the unweighted exp 
+vrange = (min(-np.abs(np.min(best_exp)), -np.abs(np.max(best_exp))), 
+        max(np.abs(np.min(best_exp)),np.abs(np.max(best_exp))))
+fig, ax = caco.plotChart(best_exp, 
+        title='Expected win/loss given perfect play, infinite shoe', 
+        textarr=best_exp, textfmt=(lambda x, a: '%.1e'%x), cmap=plt.cm.RdYlGn, vrange=vrange)
 fig.savefig('img/hand_expectations.png', bbox_inches = 'tight', pad_inches = 0)
+
+
 
 
 

@@ -6,7 +6,7 @@
 #include <string.h>
 
 // define useful stuff
-#define ERRTOL 1.0e-5
+#define ERRTOL 1.0e-8
 #define STAND 0
 #define HIT 1
 #define DOUBLE 2

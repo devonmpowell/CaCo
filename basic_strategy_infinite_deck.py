@@ -124,7 +124,7 @@ print "elapsed time = %f" % (tstop-tstart)
 print 
 
 fig, ax = caco.plotChart(best_action, title='Optimal strategy, infinite shoe', textarr =
-        all_exp, textfmt =(lambda exp, act: '%+.3f'%exp[act]))
+        all_exp, textfmt =(lambda exp, act: '%s'%caco.actionLabels[act]))
 fig.savefig('img/basic_strategy_infinite_deck.png', bbox_inches = 'tight', pad_inches = 0)
 best_action.tofile('tables/basic_strategy_infinite_deck_actions.np')
 all_exp.tofile('tables/basic_strategy_infinite_deck_exp.np')
