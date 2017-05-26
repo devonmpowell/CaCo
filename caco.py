@@ -13,23 +13,23 @@ import itertools
 from scipy.stats import norm
 
 # nice plot styling
-matplotlib.rcParams['font.family'] = 'monospace'
-matplotlib.rcParams['font.size'] = 20.0
-matplotlib.rcParams['text.usetex'] = False#True
-matplotlib.rcParams['figure.figsize'] = (15,10)
-matplotlib.rcParams['lines.linewidth'] = 1.0
-matplotlib.rcParams['grid.linewidth'] = 1.5
+#matplotlib.rcParams['font.family'] = 'monospace'
+#matplotlib.rcParams['font.size'] = 20.0
+#matplotlib.rcParams['text.usetex'] = False#True
+#matplotlib.rcParams['figure.figsize'] = (15,10)
+#matplotlib.rcParams['lines.linewidth'] = 1.0
+#matplotlib.rcParams['grid.linewidth'] = 1.5
 
 # load the underlying C shared library
 _path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 _caco = ctypes.CDLL('%s/blackjack.so'%_path)
 _caco.deal_card_to_hand_choose.restype = c_double 
+_caco.expected_value.restype = c_double 
 
 # nice helpers
 allCards = [2,3,4,5,6,7,8,9,10,11]
-cardLabels = ["2","3","4","5","6","7","8","9","10","A"]
-#actionLabels = ["Stand", "Hit", "Double", "Split", "Surrender", "Insurance"]
-actionLabels = ["Sta", "Hit", "Dbl", "Split", "Surrender", "Insurance"]
+cardLabels = ["", "", "2","3","4","5","6","7","8","9","10","A"]
+actionLabels = ["Stand", "Hit", "Double", "Split", "Surrender", "Insurance"]
 
 class Hand(Structure):
 
@@ -102,15 +102,14 @@ def getOptimalMove(shoe, dealer_hand, my_hand, strategy = 'omniscient'):
 
 
     if strategy == 'omniscient':
-        exp = c_double(0.0)
         bet = c_double(1.0)
-        allowed_moves = np.array([1,1,1,0,0,0], dtype=np.int32) 
+        allowed_moves = np.array([1,1,1,2,0,0], dtype=np.int32) 
         depth = c_int(2)
         action = c_int(0)
 
-        _caco.expected_value(bet, my_hand, dealer_hand, shoe,
-                allowed_moves.ctypes.data_as(POINTER(c_int)), byref(action), byref(exp), depth)
+        exp = _caco.expected_value(bet, my_hand, dealer_hand, shoe,
+                allowed_moves.ctypes.data_as(POINTER(c_int)), byref(action), depth)
 
-        return action.value, exp.value
+        return action.value, exp
 
 
