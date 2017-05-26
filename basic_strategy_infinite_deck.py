@@ -43,7 +43,7 @@ for my_points in xrange(20, 4, -1):
         
         # get the best possible action and its expected value
         action, exp =  caco.getOptimalMove(shoe, dealer_hand, my_hand)
-        print_color_no_return("%s (%.3f)\t\t" % (caco.actionLabels[action], exp),
+        print_color_no_return("%s (%+.5f)\t" % (caco.actionLabels[action], exp),
                 action_colors[action])
 print 
 
@@ -67,7 +67,7 @@ for my_points in xrange(10, 1, -1):
 
         # get the best possible action and its expected value
         action, exp =  caco.getOptimalMove(shoe, dealer_hand, my_hand)
-        print_color_no_return("%s (%.3f)\t\t" % (caco.actionLabels[action], exp),
+        print_color_no_return("%s (%+.5f)\t" % (caco.actionLabels[action], exp),
                 action_colors[action])
 print 
 
@@ -91,7 +91,7 @@ for my_points in xrange(11, 1, -1):
 
         # get the best possible action and its expected value
         action, exp =  caco.getOptimalMove(shoe, dealer_hand, my_hand)
-        print_color_no_return("%s (%.3f)\t\t" % (caco.actionLabels[action], exp),
+        print_color_no_return("%s (%+.5f)\t" % (caco.actionLabels[action], exp),
                 action_colors[action])
 print 
 print 

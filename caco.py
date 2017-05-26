@@ -29,7 +29,7 @@ _caco.expected_value.restype = c_double
 # nice helpers
 allCards = [2,3,4,5,6,7,8,9,10,11]
 cardLabels = ["", "", "2","3","4","5","6","7","8","9","10","A"]
-actionLabels = ["Stand", "Hit", "Double", "Split", "Surrender", "Insurance"]
+actionLabels = ["Stand ", "Hit   ", "Double", "Split ", "Surrender", "Insurance"]
 
 class Hand(Structure):
 
