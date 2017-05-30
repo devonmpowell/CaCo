@@ -20,7 +20,7 @@ matplotlib.rcParams['font.serif'] = 'computer modern roman'
 
 # load the underlying C shared library
 _path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-_caco = ctypes.CDLL('%s/blackjack.so'%_path)
+_caco = ctypes.CDLL('%s/cocalib.so'%_path)
 _caco.deal_card_to_hand_choose.restype = c_double 
 _caco.expected_value.restype = c_double 
 
@@ -131,6 +131,17 @@ def getOptimalMove(shoe, dealer_hand, my_hand, rules=Rules(), strategy = 'optima
 
         return action.value, exp_values
 
+def getChartIndFromCards(my_hand, dealer_hand):
+
+    my_ind = c_int(0); 
+    dealer_ind = c_int(0); 
+
+    _caco.chart_ind_from_hands(my_hand, dealer_hand, byref(my_ind), byref(dealer_ind));
+
+    return (dealer_ind.value, my_ind.value) 
+
+
+# returns the optimal move based on the desired strategy 
 def simulateGame(max_hands=50, num_decks=6, num_players=4, rules=vegasRules, strategy='omniscient', seed=None):
 
     if seed is None:
@@ -203,19 +214,6 @@ def simulateGame(max_hands=50, num_decks=6, num_players=4, rules=vegasRules, str
     #for h in xrange(max_hands):
         ## todo: when to shuffle?
         #shoe.shuffle()
-
-
-
-
-# returns the optimal move based on the desired strategy 
-def getChartIndFromCards(my_hand, dealer_hand):
-
-    my_ind = c_int(0); 
-    dealer_ind = c_int(0); 
-
-    _caco.chart_ind_from_hands(my_hand, dealer_hand, byref(my_ind), byref(dealer_ind));
-
-    return (dealer_ind.value, my_ind.value) 
 
 
 def plotChart(ar, title=None, cmap=None,
@@ -330,3 +328,4 @@ def getChartContours(ar):
         cumprb += prb
 
     return one_sigma, two_sigma
+

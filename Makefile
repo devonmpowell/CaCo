@@ -1,9 +1,8 @@
 # ---------------------------------------------------------------------------
 #
-#	Makefile for HydroPlayground 
+#	Makefile for CoCa 
 #
-#	Devon Powell 
-#	December 2016
+#	Devon Powell
 #
 #	usage: make
 #
@@ -11,9 +10,9 @@
 
 
 # Source files
-SOURCES = blackjack.c 
+SOURCES = cocalib.c 
 COMMON = 
-LIBOUT = blackjack.so 
+LIBOUT = cocalib.so 
 
 # compiler options
 CC = gcc

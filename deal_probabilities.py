@@ -5,12 +5,12 @@ import matplotlib
 import matplotlib.pyplot as plt 
 import matplotlib.ticker as plticker 
 import copy
-import caco
+import coca
 import time
 import sys
 
 # a new infinite shoe
-shoe = caco.Shoe(numdecks=-1)
+shoe = coca.Shoe(numdecks=-1)
 dealprob = np.zeros((10, 34), dtype=np.float64)
 weightedexp = np.zeros((10, 34), dtype=np.float64)
 
@@ -21,14 +21,14 @@ best_exp = np.array([[all_exp[d,m,best_action[d,m]] for m in xrange(34)] for d i
 
 # pairs 
 tstart = time.time()
-for d0 in caco.allCards: 
-    for m0 in caco.allCards: 
-        for m1 in caco.allCards: 
+for d0 in coca.allCards: 
+    for m0 in coca.allCards: 
+        for m1 in coca.allCards: 
 
             # shuffle the shoe and deal the hand
             shoe.shuffle()
-            dealer_hand = caco.Hand()
-            my_hand = caco.Hand()
+            dealer_hand = coca.Hand()
+            my_hand = coca.Hand()
 
             # just to test a skewed deck
             #for c in xrange(2,6):
@@ -37,10 +37,10 @@ for d0 in caco.allCards:
                 #shoe.total -= delta
 
             prb = 1.0;
-            prb *= caco.dealCardToHand(shoe, dealer_hand, card=d0, way='choose')
-            prb *= caco.dealCardToHand(shoe, my_hand, card=m0, way='choose')
-            prb *= caco.dealCardToHand(shoe, my_hand, card=m1, way='choose')
-            ind = caco.getChartIndFromCards(my_hand, dealer_hand)
+            prb *= coca.dealCardToHand(shoe, dealer_hand, card=d0, way='choose')
+            prb *= coca.dealCardToHand(shoe, my_hand, card=m0, way='choose')
+            prb *= coca.dealCardToHand(shoe, my_hand, card=m1, way='choose')
+            ind = coca.getChartIndFromCards(my_hand, dealer_hand)
             dealprob[ind] += prb 
             weightedexp[ind] += prb*best_exp[ind]
 
@@ -52,14 +52,14 @@ print 'Total error in deal prob = %.5e' % np.abs(1.0-np.sum(dealprob))
 # also save the unweighted exp 
 vrange = (min(-np.abs(np.min(best_exp)), -np.abs(np.max(best_exp))), 
         max(np.abs(np.min(best_exp)),np.abs(np.max(best_exp))))
-fig, ax = caco.plotChart(best_exp, 
+fig, ax = coca.plotChart(best_exp, 
         title='Expected win/loss given perfect play,\ninfinite shoe (total = %+.3f pct)' %
         (100.0*np.sum(weightedexp)), 
         textarr=best_exp, textfmt=(lambda x, a: '%+.4f'%x), cmap=plt.cm.RdYlGn, vrange=vrange)
 #fig.savefig('img/hand_expectations.png', bbox_inches = 'tight', pad_inches = 0)
 
 
-fig, ax = caco.plotChart(dealprob, title='Deal probability, infinite shoe', 
+fig, ax = coca.plotChart(dealprob, title='Deal probability, infinite shoe', 
         textarr=dealprob,
         textfmt=(lambda x, a: '%.3e'%x), cmap=plt.cm.RdBu_r)
 #fig.savefig('img/deal_probabilities.png', bbox_inches = 'tight', pad_inches = 0)
