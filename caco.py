@@ -218,8 +218,7 @@ def getChartIndFromCards(my_hand, dealer_hand):
     return (dealer_ind.value, my_ind.value) 
 
 
-def plotChart(ar, title=None,
-        cmap=colors.ListedColormap(['green','yellow','red','cyan','gray','gray','gray']),
+def plotChart(ar, title=None, cmap=None,
         vrange=None, grid=True, textarr=None, textfmt=None, contours=None):
 
     # set up the axes 
@@ -256,8 +255,15 @@ def plotChart(ar, title=None,
     # plot it
     if vrange is None:
         vrange = (np.min(ar), np.max(ar))
+    if cmap is None:
+        cmap = colors.ListedColormap(['green','yellow','red','cyan','white'])
+        bounds = [0,1,2,3,4,5] 
+        norm = colors.BoundaryNorm(bounds, cmap.N)
+    else:
+        norm = None
+
     imargs = {'interpolation': 'nearest', 'aspect': 'auto', 'cmap': cmap, 'vmin': vrange[0],
-            'vmax': vrange[1]}
+            'vmax': vrange[1], 'norm': norm}
     hard_actions = ar[:,:15]
     imargs['extent'] = [2,10,5,20] 
     ax[0].imshow(hard_actions.T, **imargs)
