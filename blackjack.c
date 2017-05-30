@@ -6,7 +6,6 @@
 #include <string.h>
 
 // define useful stuff
-#define ERRTOL 1.0e-8
 #define STAND 0
 #define HIT 1
 #define DOUBLE 2
@@ -18,6 +17,7 @@ typedef struct {
 	int points;
 	int softness;
 	int numcards;
+	int depth;
 	int ispair;
 } Hand;
 typedef struct {
@@ -25,64 +25,79 @@ typedef struct {
 	int total;
 	int numdecks; 
 } Shoe;
+typedef struct {
+	int allowed[6]; // only indices 2-11 are used
+	int max_split_depth;
+	int double_after_split;
+	int dealer_hits_soft_17;
+	int can_hit_split_aces;
+	real errtol;
+} Rules;
 
 // prototypes
+void seed_rand(int seed);
 void init_shoe(Shoe* shoe, int numdecks);
 void init_hand(Hand* hand);
+int blackjack(Hand hand);
+int split_to_21(Hand hand);
 real choose_card_from_shoe(Shoe* shoe, int card);
 void add_card_to_hand(Hand* hand, int card);
 int deal_card_to_hand_random(Shoe* shoe, Hand* hand);
 real deal_card_to_hand_choose(Shoe* shoe, Hand* hand, int card);
-void exp_stand(real bet, Hand hand, Hand dealer, Shoe shoe, real* exp);
-void expected_value(real bet, Hand hand, Hand dealer, Shoe shoe, int* allowed, int* best_action, real* all_exp, int depth);
+void exp_stand(real bet, Hand hand, Hand dealer, Shoe shoe, Rules rules, real* exp);
+void expected_value(real bet, Hand hand, Hand dealer, Shoe shoe, Rules rules, int* best_action, real* all_exp);
 void chart_ind_from_hands(Hand hand, Hand dealer, int* my_ind, int* dealer_ind); 
+void simulate_unit_bet(Hand hand, Hand dealer, Shoe shoe, Rules rules, int* best_action, real* all_exp);
 
 // the main function
-// returns the expected value for the best possible action for the given hand
-void expected_value(real bet, Hand hand, Hand dealer, Shoe shoe, int* allowed, int* best_action, real* all_exp, int depth) {
+void simulate_unit_bet(Hand hand, Hand dealer, Shoe shoe, Rules rules, int* best_action, real* all_exp) {
 
-	int c, c0, c1, a, batmp, acttmp[6];
+	// if these two hands are freshly dealt, 
+	// do pre-play options and side bets
+	if(dealer.depth == 1 && hand.depth == 2) {
+
+		// surrender forfiets half the bet.
+		// See if this beats anything
+		if(rules.allowed[SURRENDER])
+			all_exp[SURRENDER] = -0.5;
+
+		// TODO: insurance, side bets
+		// TODO: dealer 10 or A peeking against player blackjack
+	}
+
+	// simulate on the whole unit bet
+	// NOTE: assumes that all allowed moves have been passed correctly!
+	expected_value(1.0, hand, dealer, shoe, rules, best_action, all_exp);
+
+
+
+}
+
+// returns the expected value for the best possible action for the given hand
+void expected_value(real bet, Hand hand, Hand dealer, Shoe shoe, Rules rules, int* best_action, real* all_exp) {
+
+
+	// from WIZARD of ODDS:
+	// following rules: dealer stands on a soft 17, an infinite deck, the player may double
+	// after a split, split up to three times except for aces, and draw only one card to split
+	// aces. Based on these rules, the player's expected value is -0.511734%.'
+
+	int c, c0, c1, a, batmp;
 	real max_exp, prb, prc0, prc1, exptmp[6];
 	Hand ht0, ht1, htmp;
 	Shoe st0, st1, stmp;
+	Rules rtmp;
 
 	// return if the bet is << 1
-	if(bet < ERRTOL) {
+	if(bet < rules.errtol) {
 		*best_action = STAND;
 		all_exp[STAND] = 0.0;
 		return;
 	} 
 
-#if 0
-	// if we have just dealt the hand, check for dealer/player blackjack
-	if(!depth) {
-	
-		// probability of dealer blackjack
-		//prb = 0.0;
-		//if(dealer.points == 10) {
-			//prb = ((real)shoe.num[11])/shoe.total;
-			
-		//}
-		//else if(dealer.points == 11) {
-			//prb = ((real)shoe.num[10])/shoe.total;
-		//}
-
-		// if we have a blackjack, 
-		if(hand.points == 21) {
-			//printf("bj, bet = %f\n", bet);
-			*best_action = STAND;
-			all_exp[STAND] = 1.5*bet;//*(1.0-prb);
-			return;
-		}
-		else {
-			// probability of losing to dealer BJ, or push
-		}
-	}
-#endif
-
 	// simulate the expected value of standing
 	// should always be allowed 
-	if(allowed[STAND]) {
+	if(rules.allowed[STAND]) {
 
 		// guard against soft hands exceeding 21
 		htmp = hand;
@@ -92,18 +107,18 @@ void expected_value(real bet, Hand hand, Hand dealer, Shoe shoe, int* allowed, i
 		}
 
 		// get the expected value of standing on this hand
-		exp_stand(bet, htmp, dealer, shoe, &all_exp[STAND]);
+		exp_stand(bet, htmp, dealer, shoe, rules, &all_exp[STAND]);
 	}
 
 	// simulate the expected value of hitting 
-	if(allowed[HIT]) { // should be always
+	if(rules.allowed[HIT]) { // should be always
 
 		// hitting precludes anything but hit or stand afterwards
-		memcpy(acttmp, allowed, 6*sizeof(int));
-		acttmp[SPLIT] = 0; 
-		acttmp[DOUBLE] = 0;
-		acttmp[SURRENDER] = 0;
-		acttmp[INSURANCE] = 0;
+		rtmp = rules;
+		rtmp.allowed[SPLIT] = 0; 
+		rtmp.allowed[DOUBLE] = 0;
+		rtmp.allowed[SURRENDER] = 0;
+		rtmp.allowed[INSURANCE] = 0;
 
 		// recursively sum the expected gain from each possible draw
 		all_exp[HIT] = 0.0;
@@ -119,14 +134,14 @@ void expected_value(real bet, Hand hand, Hand dealer, Shoe shoe, int* allowed, i
 				all_exp[HIT] -= prb*bet;	
 			} 
 			else  {
-				expected_value(prb*bet, htmp, dealer, stmp, acttmp, &batmp, exptmp, depth+1);
+				expected_value(prb*bet, htmp, dealer, stmp, rtmp, &batmp, exptmp);
 				all_exp[HIT] += exptmp[batmp]; // use the action giving the highest expected outcome
 			}
 		}
 	}
 
 	// simulate the expected value of doubling (allowed exactly one more card) 
-	if(allowed[DOUBLE]) { 
+	if(rules.allowed[DOUBLE]) { 
 		all_exp[DOUBLE] = 0.0;
 		for(c = 2; c <= 11; ++c) {
 			htmp = hand;
@@ -139,26 +154,44 @@ void expected_value(real bet, Hand hand, Hand dealer, Shoe shoe, int* allowed, i
 				all_exp[DOUBLE] -= prb*2.0*bet;	
 			} 
 			else {
-				exp_stand(2.0*prb*bet, htmp, dealer, stmp, exptmp);
+				exp_stand(2.0*prb*bet, htmp, dealer, stmp, rules, exptmp);
 				all_exp[DOUBLE] += exptmp[0];
 			} 
 		}
 	}
 
 	// simulate splitting, if hand is a pair and splitting is allowed
-	allowed[SPLIT] *= hand.ispair;
-	if(allowed[SPLIT]) {
+	// can only split up to a maximum depth 
+	rules.allowed[SPLIT] *= hand.ispair;
+	rules.allowed[SPLIT] *= (hand.depth < (2+rules.max_split_depth)); 
+	if(rules.allowed[SPLIT]) {
 
-		memcpy(acttmp, allowed, 6*sizeof(int));
-		acttmp[SPLIT] -= 1; // most blackjack rules set the initial value of allowed[SPLIT] to 2
-		acttmp[DOUBLE] = 1; // TODO: doubling usually not allowed after splitting
-	
+		// Make the split hand
+		// Do not decrement the hand depth though!
+		htmp = hand; 
+		htmp.points /= 2; 
+		htmp.softness /= 2; 
+		htmp.numcards /= 2;
+		htmp.ispair = 0; 
+
+		// set up post-split rules
+		all_exp[SPLIT] = 0.0;
+		rtmp = rules;
+		if(htmp.points == 11 && !rtmp.can_hit_split_aces) {
+
+			// if the player splits aces, we can only take one more card
+			// unless splitting again, up to the max depth
+			rtmp.allowed[HIT] = 0; 
+			rtmp.allowed[DOUBLE] = 0;
+		}
+		else {
+
+			// player may double or hit after split, depending on the rules 
+			rtmp.allowed[DOUBLE] *= (rtmp.double_after_split > 0); 
+		}
+
 		// we must simulate all possible combinations of the next two cards
 		// to precisely capture the state of the deck after two subsequent draws 
-		all_exp[SPLIT] = 0.0;
-		htmp = hand;
-		htmp.points /= 2; htmp.softness /= 2;
-		htmp.ispair = 0;
 		for(c0 = 2; c0 <= 11; ++c0) {
 			st0 = shoe;
 			ht0 = htmp;
@@ -167,9 +200,11 @@ void expected_value(real bet, Hand hand, Hand dealer, Shoe shoe, int* allowed, i
 				st1 = st0;
 				ht1 = htmp;
 				prc1 = deal_card_to_hand_choose(&st1, &ht1, c1); 
-				expected_value(prc0*prc1*bet, ht0, dealer, st0, acttmp, &batmp, exptmp, depth+1);
+
+				// play out the two sub-hand independently
+				expected_value(prc0*prc1*bet, ht0, dealer, st0, rtmp, &batmp, exptmp);
 				all_exp[SPLIT] += exptmp[batmp];
-				expected_value(prc0*prc1*bet, ht1, dealer, st1, acttmp, &batmp, exptmp, depth+1);
+				expected_value(prc0*prc1*bet, ht1, dealer, st1, rtmp, &batmp, exptmp);
 				all_exp[SPLIT] += exptmp[batmp];
 			}
 		}
@@ -179,31 +214,20 @@ void expected_value(real bet, Hand hand, Hand dealer, Shoe shoe, int* allowed, i
 	// given the current knowledge of the deck and visible cards
 	max_exp = -1000*bet;
 	for(a = 0; a < 6; ++a) {
-		if(!allowed[a]) continue;
+		if(!rules.allowed[a]) {
+			all_exp[a] = -1000*bet;
+			continue;
+		} 
 		if(all_exp[a] > max_exp) {
 			*best_action = a;
 			max_exp = all_exp[a];
 		}
 	}
-
-
-	// TODO: check player 21
-	// TODO: check dealer 21, insurance, etc
-	// Natural blackjack gets checked first
-#if 0
-
-	// if we are just post-deal and must check dealer BJ
-	if(depth == 2) {
-
-	
-	}
-#endif
-
 }
 
 
 // gives the expected winnings if the player stands
-void exp_stand(real bet, Hand hand, Hand dealer, Shoe shoe, real* exp) {
+void exp_stand(real bet, Hand hand, Hand dealer, Shoe shoe, Rules rules, real* exp) {
 
 	int c;
 	real prb, exptmp;
@@ -212,29 +236,42 @@ void exp_stand(real bet, Hand hand, Hand dealer, Shoe shoe, real* exp) {
 
 	// stop if bet << 1
 	*exp = 0.0;
-	if(bet < ERRTOL) 
+	if(bet < rules.errtol) 
 		return;
 
-	// the dealer must hit
-	// TODO: rule variants!
-	if(dealer.points < 17) {
+	// dealer hits
+	if(dealer.points < 17
+			|| (rules.dealer_hits_soft_17 && dealer.points == 17 && dealer.softness)) {
 
 		// simulate the dealers hit/stand/bust, recursing as needed
 		for(c = 2; c <= 11; ++c) {
 			dtmp = dealer;
 			stmp = shoe;
 			if(stmp.num[c] <= 0) continue;
-	
-			// bust or recurse, weighting sub-expected values
-			// by the probability that c is drawn
+
 			prb = deal_card_to_hand_choose(&stmp, &dtmp, c); 
-			if(dtmp.points > 21) {
-				*exp += prb*bet;	
+
+			// got through special win/loss scenarios 
+			// barring all else, try hitting again
+			// split to 21 beats a non-blackjack dealer 21
+			// in all cases, push against dealer 21
+			if(blackjack(dtmp)) {
+				if(!blackjack(hand) && !split_to_21(hand))
+					*exp -= 1.0*prb*bet;
+			}
+			else if(blackjack(hand)) {
+				*exp += 1.5*prb*bet;
+			}
+			else if(split_to_21(hand)) {
+				*exp += 1.0*prb*bet;
+			}
+			else if(dtmp.points > 21) {
+				*exp += 1.0*prb*bet;	
 			} 
 			else {
-				exp_stand(prb*bet, hand, dtmp, stmp, &exptmp);
+				exp_stand(prb*bet, hand, dtmp, stmp, rules, &exptmp); 
 				*exp += exptmp;
-			} 
+			}
 		}
 	}
 
@@ -242,12 +279,9 @@ void exp_stand(real bet, Hand hand, Hand dealer, Shoe shoe, real* exp) {
 	else {
 		if(dealer.points < hand.points) 
 			*exp = +1.0*bet;
-		if(dealer.points == hand.points)
-			*exp = 0.0; 
 		if(dealer.points > hand.points)
 			*exp = -1.0*bet;
 	}
-
 }
 
 
@@ -337,6 +371,7 @@ void add_card_to_hand(Hand* hand, int card) {
 	hand->points += card;
 	hand->softness += (card == 11);
 	hand->numcards += 1;
+	hand->depth += 1;
 
 	// if we have a soft hand, avoid busting
 	while(!hand->ispair && hand->softness > 0 && hand->points > 21) {
@@ -362,13 +397,27 @@ real deal_card_to_hand_choose(Shoe* shoe, Hand* hand, int card) {
 void chart_ind_from_hands(Hand hand, Hand dealer, int* my_ind, int* dealer_ind) {
 
 	if(hand.ispair) 
-		*my_ind = 36 - (hand.points/2); 
+		*my_ind = 35 - (hand.points/2); 
 	else if(hand.softness)
-		*my_ind = 37 - hand.points;
+		*my_ind = 36 - hand.points;
 	else 
-		*my_ind = 20 - hand.points;
+		*my_ind = 19 - hand.points;
 
 	*dealer_ind = (dealer.points-2);
 }
 
 
+// seeeds the random number generator
+void seed_rand(int seed) {
+	srand(seed);
+}
+
+// checks for player blackjack
+int blackjack(Hand hand) {
+	return (hand.depth == 2 && hand.numcards == 2 && hand.points == 21);
+}
+
+// checks for player 21 with two cards off of a split 
+int split_to_21(Hand hand) {
+	return (hand.depth > 2 && hand.numcards == 2 && hand.points == 21);
+}
