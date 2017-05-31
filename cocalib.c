@@ -33,6 +33,10 @@ typedef struct {
 	int can_hit_split_aces;
 	real errtol;
 } Rules;
+typedef struct {
+	int actions[10][34]; 
+	int optimal; 
+} Strategy; 
 
 // prototypes
 void seed_rand(int seed);
@@ -45,36 +49,20 @@ void add_card_to_hand(Hand* hand, int card);
 int deal_card_to_hand_random(Shoe* shoe, Hand* hand);
 real deal_card_to_hand_choose(Shoe* shoe, Hand* hand, int card);
 void exp_stand(real bet, Hand hand, Hand dealer, Shoe shoe, Rules rules, real* exp);
-void expected_value(real bet, Hand hand, Hand dealer, Shoe shoe, Rules rules, int* best_action, real* all_exp);
+void expected_value(real bet, Hand hand, Hand dealer, Shoe shoe, Rules rules, Strategy strategy, int* best_action, real* all_exp);
 void chart_ind_from_hands(Hand hand, Hand dealer, int* my_ind, int* dealer_ind); 
-void simulate_unit_bet(Hand hand, Hand dealer, Shoe shoe, Rules rules, int* best_action, real* all_exp);
+void simulate_unit_bet(Hand hand, Hand dealer, Shoe shoe, Rules rules, Strategy strategy, int* best_action, real* all_exp);
 
 // the main function
-void simulate_unit_bet(Hand hand, Hand dealer, Shoe shoe, Rules rules, int* best_action, real* all_exp) {
-
-	// if these two hands are freshly dealt, 
-	// do pre-play options and side bets
-	if(dealer.depth == 1 && hand.depth == 2) {
-
-		// surrender forfiets half the bet.
-		// See if this beats anything
-		if(rules.allowed[SURRENDER])
-			all_exp[SURRENDER] = -0.5;
-
-		// TODO: insurance, side bets
-		// TODO: dealer 10 or A peeking against player blackjack
-	}
+void simulate_unit_bet(Hand hand, Hand dealer, Shoe shoe, Rules rules, Strategy strategy, int* best_action, real* all_exp) {
 
 	// simulate on the whole unit bet
 	// NOTE: assumes that all allowed moves have been passed correctly!
-	expected_value(1.0, hand, dealer, shoe, rules, best_action, all_exp);
-
-
-
+	expected_value(1.0, hand, dealer, shoe, rules, strategy, best_action, all_exp);
 }
 
 // returns the expected value for the best possible action for the given hand
-void expected_value(real bet, Hand hand, Hand dealer, Shoe shoe, Rules rules, int* best_action, real* all_exp) {
+void expected_value(real bet, Hand hand, Hand dealer, Shoe shoe, Rules rules, Strategy strategy, int* best_action, real* all_exp) {
 
 
 	// from WIZARD of ODDS:
@@ -82,7 +70,7 @@ void expected_value(real bet, Hand hand, Hand dealer, Shoe shoe, Rules rules, in
 	// after a split, split up to three times except for aces, and draw only one card to split
 	// aces. Based on these rules, the player's expected value is -0.511734%.'
 
-	int c, c0, c1, a, batmp;
+	int c, c0, c1, a, batmp, dealer_ind, my_ind;
 	real max_exp, prb, prc0, prc1, exptmp[6];
 	Hand ht0, ht1, htmp;
 	Shoe st0, st1, stmp;
@@ -134,7 +122,7 @@ void expected_value(real bet, Hand hand, Hand dealer, Shoe shoe, Rules rules, in
 				all_exp[HIT] -= prb*bet;	
 			} 
 			else  {
-				expected_value(prb*bet, htmp, dealer, stmp, rtmp, &batmp, exptmp);
+				expected_value(prb*bet, htmp, dealer, stmp, rtmp, strategy, &batmp, exptmp);
 				all_exp[HIT] += exptmp[batmp]; // use the action giving the highest expected outcome
 			}
 		}
@@ -202,25 +190,68 @@ void expected_value(real bet, Hand hand, Hand dealer, Shoe shoe, Rules rules, in
 				prc1 = deal_card_to_hand_choose(&st1, &ht1, c1); 
 
 				// play out the two sub-hand independently
-				expected_value(prc0*prc1*bet, ht0, dealer, st0, rtmp, &batmp, exptmp);
+				expected_value(prc0*prc1*bet, ht0, dealer, st0, rtmp, strategy, &batmp, exptmp);
 				all_exp[SPLIT] += exptmp[batmp];
-				expected_value(prc0*prc1*bet, ht1, dealer, st1, rtmp, &batmp, exptmp);
+				expected_value(prc0*prc1*bet, ht1, dealer, st1, rtmp, strategy, &batmp, exptmp);
 				all_exp[SPLIT] += exptmp[batmp];
 			}
 		}
 	}
 
+	// if these two hands are freshly dealt, 
+	// do pre-play options and side bets
+	rules.allowed[SURRENDER] *= (hand.depth <= 2);
+	if(dealer.depth == 1 && hand.depth == 2) {
+		// surrender forfiets half the bet.
+		// See if this beats anything
+		if(rules.allowed[SURRENDER])
+			all_exp[SURRENDER] = -0.5*bet;
+	}
+
+
 	// Decide which action yields the greatest expected value,
 	// given the current knowledge of the deck and visible cards
-	max_exp = -1000*bet;
-	for(a = 0; a < 6; ++a) {
-		if(!rules.allowed[a]) {
+	for(a = 0; a < 6; ++a)
+		if(!rules.allowed[a])
 			all_exp[a] = -1000*bet;
-			continue;
-		} 
-		if(all_exp[a] > max_exp) {
-			*best_action = a;
-			max_exp = all_exp[a];
+	if(strategy.optimal) {
+		max_exp = -1000*bet;
+		for(a = 0; a < 6; ++a) {
+			if(all_exp[a] > max_exp) {
+				*best_action = a;
+				max_exp = all_exp[a];
+			}
+		}
+	}
+	else {
+		if(hand.points > 19 && !hand.softness) {
+			*best_action = STAND;
+		}
+		else {
+			chart_ind_from_hands(hand, dealer, &my_ind, &dealer_ind);
+			*best_action = strategy.actions[dealer_ind][my_ind];
+			while(!rules.allowed[*best_action]) {
+
+				// seconday options from the strategy chart
+				if(*best_action == SURRENDER) {
+					if(hand.points >= 17)
+						*best_action = STAND;
+					else
+						*best_action = HIT;
+				}
+				else if(*best_action == DOUBLE)
+					*best_action = HIT;
+				else if(*best_action == SPLIT)
+					*best_action = HIT;
+				else if(*best_action == HIT)
+					*best_action = STAND;
+			}
+
+			//if(!rules.allowed[*best_action]) {
+				//printf("STOP! action = %d, rules = %d %d %d %d %d %d \n", *best_action,
+						//rules.allowed[0], rules.allowed[1], rules.allowed[2], rules.allowed[3], rules.allowed[4], rules.allowed[5]);
+				//exit(0);
+			//}
 		}
 	}
 }

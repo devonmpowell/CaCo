@@ -14,10 +14,16 @@ shoe = coca.Shoe(numdecks=-1)
 dealprob = np.zeros((10, 34), dtype=np.float64)
 weightedexp = np.zeros((10, 34), dtype=np.float64)
 
-# load action tables and expected values for the infinite deck case
-best_action = np.fromfile('tables/basic_strategy_infinite_deck_actions.np', dtype=np.int32).reshape((10,34))
-all_exp = np.fromfile('tables/basic_strategy_infinite_deck_exp.np', dtype=np.float64).reshape((10,34,6))
+best_action = np.fromfile('tables/basic_strategy_infinite_deck_actions.np', 
+         dtype=np.int32).reshape((10,34))
+all_exp = np.fromfile('tables/basic_strategy_infinite_deck_exp.np',
+         dtype=np.float64).reshape((10,34,6))
 best_exp = np.array([[all_exp[d,m,best_action[d,m]] for m in xrange(34)] for d in xrange(10)])
+
+print '[',
+for a in best_action.flatten():
+    print '%d,'%a,
+print ']'
 
 # pairs 
 tstart = time.time()
@@ -41,6 +47,8 @@ for d0 in coca.allCards:
             prb *= coca.dealCardToHand(shoe, my_hand, card=m0, way='choose')
             prb *= coca.dealCardToHand(shoe, my_hand, card=m1, way='choose')
             ind = coca.getChartIndFromCards(my_hand, dealer_hand)
+            #coca.getAction(shoe, my_hand, dealer_hand, )
+            ind = coca.getChartIndFromCards(my_hand, dealer_hand)
             dealprob[ind] += prb 
             weightedexp[ind] += prb*best_exp[ind]
 
@@ -56,13 +64,13 @@ fig, ax = coca.plotChart(best_exp,
         title='Expected win/loss given perfect play,\ninfinite shoe (total = %+.3f pct)' %
         (100.0*np.sum(weightedexp)), 
         textarr=best_exp, textfmt=(lambda x, a: '%+.4f'%x), cmap=plt.cm.RdYlGn, vrange=vrange)
-#fig.savefig('img/hand_expectations.png', bbox_inches = 'tight', pad_inches = 0)
+fig.savefig('img/hand_expectations.png', bbox_inches = 'tight', pad_inches = 0)
 
 
 fig, ax = coca.plotChart(dealprob, title='Deal probability, infinite shoe', 
         textarr=dealprob,
-        textfmt=(lambda x, a: '%.3e'%x), cmap=plt.cm.RdBu_r)
-#fig.savefig('img/deal_probabilities.png', bbox_inches = 'tight', pad_inches = 0)
+        textfmt=(lambda x, a: '%.3e'%x), cmap=plt.cm.PuBuGn_r)
+fig.savefig('img/deal_probabilities.png', bbox_inches = 'tight', pad_inches = 0)
 
 
 

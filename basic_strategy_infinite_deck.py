@@ -19,7 +19,9 @@ def print_color_no_return(str, color):
 # a new infinite shoe
 shoe = coca.Shoe(numdecks=-1)
 rules = coca.Rules(allowed_actions=[1,1,1,1,1,0], max_split_depth=2, double_after_split=1,
-        dealer_hits_soft_17=0, can_hit_split_aces=0, errtol=1.0e-4)
+        dealer_hits_soft_17=0, can_hit_split_aces=0, errtol=1.0e-5)
+strategy = coca.Strategy(type='optimal_infinite_deck')
+#strategy = coca.Strategy(type='optimal')
 best_action = np.empty((10, 34), dtype=np.int32)
 all_exp = np.empty((10, 34, 6), dtype=np.float64)
 tstart = time.time()
@@ -48,7 +50,8 @@ for my_points in xrange(19, 4, -1):
         my_hand.ispair = 0
         
         # get the best possible action and its expected value
-        action, exp =  coca.getOptimalMove(shoe, dealer_hand, my_hand, rules=rules)
+        action, exp =  coca.getAction(shoe, dealer_hand, my_hand, rules=rules, strategy=strategy)
+        #print exp
         print_color_no_return("%s (%+.5f)\t" % (coca.actionLabels[action], exp[action]),
                 action_colors[action])
         ind = coca.getChartIndFromCards(my_hand, dealer_hand)
@@ -75,7 +78,7 @@ for my_points in xrange(10, 1, -1):
         my_hand.addCard(my_points)
 
         # get the best possible action and its expected value
-        action, exp =  coca.getOptimalMove(shoe, dealer_hand, my_hand, rules=rules)
+        action, exp =  coca.getAction(shoe, dealer_hand, my_hand, rules=rules, strategy=strategy)
         print_color_no_return("%s (%+.5f)\t" % (coca.actionLabels[action], exp[action]),
                 action_colors[action])
         ind = coca.getChartIndFromCards(my_hand, dealer_hand)
@@ -103,7 +106,7 @@ for my_points in xrange(11, 1, -1):
         my_hand.addCard(my_points)
 
         # get the best possible action and its expected value
-        action, exp =  coca.getOptimalMove(shoe, dealer_hand, my_hand, rules=rules)
+        action, exp =  coca.getAction(shoe, dealer_hand, my_hand, rules=rules, strategy=strategy)
         print_color_no_return("%s (%+.5f)\t" % (coca.actionLabels[action], exp[action]),
                 action_colors[action])
         ind = coca.getChartIndFromCards(my_hand, dealer_hand)
